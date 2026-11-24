@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ক্লিপ ডাউনলোডার</title>
+<style>
+  :root { color-scheme: dark light; --bg:#0f1115; --card:#1a1d24; --tx:#f1f3f7; --mut:#9aa3b2; --ac:#ff4d4d; --bd:#2a2f3a; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f5f7; --card:#fff; --tx:#16181d; --mut:#5d6675; --bd:#d9dde3; } }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:20px 16px; background:var(--bg); color:var(--tx); font-family:-apple-system,"Noto Sans Bengali",sans-serif; }
+  .card { max-width:480px; margin:0 auto; background:var(--card); border:1px solid var(--bd); border-radius:16px; padding:20px; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  p.sub { margin:0 0 16px; color:var(--mut); font-size:14px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:12px 0 4px; }
+  input, select { width:100%; padding:12px; font-size:16px; border-radius:10px; border:1px solid var(--bd); background:var(--bg); color:var(--tx); }
+  .row { display:flex; gap:10px; } .row > div { flex:1; }
+  .chk { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:14px; }
+  .chk input { width:auto; }
+  button { width:100%; margin-top:18px; padding:14px; font-size:16px; font-weight:600; border:0; border-radius:10px; background:var(--ac); color:#fff; }
+  button:disabled { opacity:.5; }
+  #msg { margin-top:14px; font-size:14px; line-height:1.5; color:var(--mut); white-space:pre-wrap; }
+  #msg.err { color:#ff6b6b; }
+  #msg.ok { color:#3ecf8e; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>ক্লিপ ডাউনলোডার</h1>
+  <p class="sub">ইউটিউব ভিডিওর শুধু বাছাই করা অংশ নামান</p>
+
+  <label>ইউটিউব লিঙ্ক</label>
+  <input id="url" type="url" placeholder="https://youtu.be/..." autocapitalize="off" autocorrect="off">
+
+  <div class="row">
+    <div><label>শুরু</label><input id="start" type="text" inputmode="numeric" placeholder="10:30"></div>
+    <div><label>শেষ</label><input id="end" type="text" inputmode="numeric" placeholder="13:00"></div>
+  </div>
+
+  <label>কোয়ালিটি</label>
+  <select id="q">
+    <option value="1080" selected>১০৮০p (সেরা)</option>
+    <option value="720">৭২০p</option>
+    <option value="480">৪৮০p</option>
+  </select>
+
+  <label class="chk"><input id="p" type="checkbox"> নিখুঁত সেকেন্ডে কাটো (ধীর, কিন্তু সঠিক)</label>
+
+  <button id="go">ক্লিপ ডাউনলোড করুন</button>
+  <div id="msg"></div>
+</div>
+
+<script>
+  // Render-এ ডিপ্লয়ের পর এখানে আপনার ব্যাকএন্ড লিঙ্ক বসান (শেষে / দেবেন না)
+  const BACKEND = "https://YOUR-APP.onrender.com";
+
+  const $ = id => document.getElementById(id);
+  const msg = (t, cls) => { $("msg").textContent = t; $("msg").className = cls || ""; };
+
+  // পেজ খুললেই সার্ভারকে জাগিয়ে রাখার চেষ্টা
+  fetch(BACKEND + "/").catch(() => {});
+
+  $("go").onclick = async () => {
+    const url = $("url").value.trim();
+    const s = $("start").value.trim();
+    const e = $("end").value.trim();
+    if (!url || !s || !e) { msg("লিঙ্ক, শুরু ও শেষের সময় দিন", "err"); return; }
+
+    const q = new URLSearchParams({
+      url, start: s, end: e,
+      quality: $("q").value,
+      precise: $("p").checked
+    });
+
+    $("go").disabled = true;
+    msg("সার্ভার জাগছে ও ক্লিপ বানাচ্ছে...\nপ্রথমবার ১-৩ মিনিট লাগতে পারে, পেজ বন্ধ করবেন না।");
+
+    try {
+      const r = await fetch(BACKEND + "/clip?" + q);
+      if (!r.ok) {
+        let d = "";
+        try { d = (await r.json()).detail; } catch (_) {}
+        throw new Error(d || "ত্রুটি " + r.status);
+      }
+      const b = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = "clip.mp4";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      msg("হয়েছে! Safari-র ডাউনলোড বাটনে (অ্যাড্রেস বারের পাশে) চাপুন, ফাইল Files অ্যাপে সেভ হবে।", "ok");
+    } catch (err) {
+      msg(err.message, "err");
+    } finally {
+      $("go").disabled = false;
+    }
+  };
+</script>
+</body>
+</html>
